@@ -11,6 +11,11 @@ The addon includes a cleaner, louder "splash" sound file. To use it, you must mo
     Correct Path: Turtle WoW/Sound/Spells/FishingBobberSplash.wav
 
     Note: This doesn't replace your game files; it tells the game to use this file instead of the default one.
+<img width="504" height="684" alt="image" src="https://github.com/user-attachments/assets/714e8310-3c6f-46ea-aac0-ea512749f730" />
+
+<img width="308" height="173" alt="image" src="https://github.com/user-attachments/assets/f2fd7aea-78eb-4854-8133-2ceed9dc02c1" />
+
+
 
 Features
 🔊 Volume Control
