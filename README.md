@@ -7,8 +7,9 @@ Installation
 1. Download this repository and move the FishingVolume folder into your Interface/AddOns/ directory.
 2. The addon includes a cleaner, louder "splash" sound file. To use it, you must move the Sound folder provided in this download into your main Turtle WoW game folder (the one containing WoW.exe).
    
-    Correct Path: Turtle WoW/Sound/Spells/FishingBobberSplash.wav
-    Note: This doesn't replace your game files; it tells the game to use this file instead of the default one.
+   Correct Path: Turtle WoW/Sound/Spells/FishingBobberSplash.wav
+   <br>
+   Note: This doesn't replace your game files; it tells the game to use this file instead of the default one.
 
 
 <br>
