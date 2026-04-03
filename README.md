@@ -1,13 +1,13 @@
-FishingVolume (Turtle WoW / 1.12.1)
+FishingVolume (1.12.1)
 
-FishingVolume is a utility for Turtle WoW designed to automatically handles your volume levels and adds a few quality-of-life shortcuts to make long fishing sessions less of a chore.
+FishingVolume is a utility for 1.12.1 designed to automatically handle your volume levels and adds a few quality-of-life shortcuts to make long fishing sessions less of a chore.
 <br>
 
 Installation
 1. Download this repository and move the FishingVolume folder into your Interface/AddOns/ directory.
-2. The addon includes a cleaner, louder "splash" sound file. To use it, you must move the Sound folder provided in this download into your main Turtle WoW game folder (the one containing WoW.exe).
+2. The addon includes a cleaner, louder "splash" sound file. To use it, you must move the Sound folder provided in this download into your main WoW game folder (the one containing WoW.exe).
    
-   Correct Path: Turtle WoW/Sound/Spells/FishingBobberSplash.wav
+   Correct Path: WoW/Sound/Spells/FishingBobberSplash.wav
    <br>
    Note: This doesn't replace your game files; it tells the game to use this file instead of the default one.
 
@@ -62,5 +62,5 @@ Commands
 
 Credits
 
-Built specifically for the Turtle WoW client.
+Built specifically for the 1.12.1 WoW client.
 Happy fishing!
