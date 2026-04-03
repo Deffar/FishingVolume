@@ -13,6 +13,8 @@ The addon includes a cleaner, louder "splash" sound file. To use it, you must mo
     Note: This doesn't replace your game files; it tells the game to use this file instead of the default one.
 <img width="504" height="684" alt="image" src="https://github.com/user-attachments/assets/714e8310-3c6f-46ea-aac0-ea512749f730" />
 
+<br>
+
 <img width="308" height="173" alt="image" src="https://github.com/user-attachments/assets/f2fd7aea-78eb-4854-8133-2ceed9dc02c1" />
 
 <img width="304" height="174" alt="image" src="https://github.com/user-attachments/assets/5e6ce63f-1629-4907-bf2c-3b6a258608df" />
