@@ -25,7 +25,7 @@ The addon includes a cleaner, louder "splash" sound file. To use it, you must mo
 <img width="1808" height="755" alt="image" src="https://github.com/user-attachments/assets/e14e3683-997f-41de-be3d-6e1efd8d89b4" />
 
 Features
-🔊 Volume Control
+Volume Control
 
     Auto-Boost: When you start fishing, the addon kicks your "Sound Volume" up to your preferred level.
 
@@ -33,7 +33,7 @@ Features
 
     Mute Delay: If you have high latency, you can set a delay so the volume stays up for a few seconds after the cast ends to make sure you hear the catch.
 
-🎣 The "Lazy" Fishing Kit
+The "Lazy" Fishing Kit
 
     Click-to-Fish Overlay: A large, transparent button appears on your screen after a catch.
 
@@ -47,7 +47,7 @@ Features
 
     Smart Lures: One-click to scan your bags for the best available lure and apply it to your pole.
 
-📈 Stats Tracking
+Stats Tracking
 
     Session Stats: Tracks how many fish and chests/trunks you've caught since you logged in.
 
