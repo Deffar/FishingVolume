@@ -7,11 +7,18 @@ local LABEL_W = 40
 local SLIDER_W = FRAME_W - PAD * 2 - LABEL_W - 4
 
 -- Helper: Scans inventory for any fishing lure and returns total count
+-- Cached lure count — only rescanned when inventory changes
+local cachedLureCount = 0
+local lureCountDirty = true
+
 local function GetLureCount()
+    if not lureCountDirty then return cachedLureCount end
+    lureCountDirty = false
     local lures = { "Shiny Bauble", "Nightcrawlers", "Aquadynamic Fish Attractor", "Bright Baubles", "Fleshless Bone", "Aquadynamic Fish Lens" }
     local count = 0
     for bag = 0, 4 do
-        for slot = 1, GetContainerNumSlots(bag) do
+        local slots = GetContainerNumSlots(bag)
+        for slot = 1, slots do
             local link = GetContainerItemLink(bag, slot)
             if link then
                 local name = FishingVolume.GetItemName(link)
@@ -26,8 +33,14 @@ local function GetLureCount()
             end
         end
     end
+    cachedLureCount = count
     return count
 end
+
+-- Invalidate cache when inventory changes
+local invWatcher = CreateFrame("Frame")
+invWatcher:RegisterEvent("BAG_UPDATE")
+invWatcher:SetScript("OnEvent", function() lureCountDirty = true end)
 
 -- Helper: Calculates percentage safely and consistently
 local function GetChestPercent(fish, chests)
@@ -80,12 +93,9 @@ function UpdateUtilityButtons(frame)
     -- RAID WARNING ALERTS
     local hasLure, expires = GetWeaponEnchantInfo()
     if frame.hadLure ~= nil then
-        if frame.hadLure and not hasLure then
-            if not FishingVolume.intentionalSwap then
-                PlaySound("RaidWarning")
-                UIErrorsFrame:AddMessage("LURE EXPIRED!", 1, 0, 0, 1)
-            end
-            FishingVolume.intentionalSwap = false
+        if frame.hadLure and not hasLure and not FishingVolume.intentionalSwap then
+            PlaySound("RaidWarning")
+            UIErrorsFrame:AddMessage("LURE EXPIRED!", 1, 0, 0, 1)
         end
         if frame.lastLureCount and frame.lastLureCount > 0 and lureCount == 0 then
             PlaySound("RaidWarning")
@@ -157,8 +167,14 @@ function UpdateUtilityButtons(frame)
             local seconds = math.floor(expires / 1000)
             timeStr = (seconds > 60) and (math.ceil(seconds / 60) .. "m") or (seconds .. "s")
         end
-        frame.lureTimeText:SetText("Time remaining on lure: " .. timeStr)
-        frame.lureInvText:SetText("Lures in inventory: " .. lureCount)
+        if frame._lastTimeStr ~= timeStr then
+            frame._lastTimeStr = timeStr
+            frame.lureTimeText:SetText("Time remaining on lure: " .. timeStr)
+        end
+        if frame._lastLureCount ~= lureCount then
+            frame._lastLureCount = lureCount
+            frame.lureInvText:SetText("Lures in inventory: " .. lureCount)
+        end
     end
 
     if frame.statSessionText then
@@ -166,22 +182,34 @@ function UpdateUtilityButtons(frame)
         local sChests = FishingVolume.sessionChests or 0
         local tFish   = FishingVolume.GetSetting("totalFish") or 0
         local tChests = FishingVolume.GetSetting("totalChests") or 0
-        frame.statSessionText:SetText(string.format("Session: %d Fish | %d Chests (%s)", sFish, sChests, GetChestPercent(sFish, sChests)))
-        frame.statTotalText:SetText(string.format("Lifetime: %d Fish | %d Chests (%s)", tFish, tChests, GetChestPercent(tFish, tChests)))
+        if frame._lastSFish ~= sFish or frame._lastSChests ~= sChests then
+            frame._lastSFish, frame._lastSChests = sFish, sChests
+            frame.statSessionText:SetText(string.format("Session: %d Fish | %d Chests (%s)", sFish, sChests, GetChestPercent(sFish, sChests)))
+        end
+        if frame._lastTFish ~= tFish or frame._lastTChests ~= tChests then
+            frame._lastTFish, frame._lastTChests = tFish, tChests
+            frame.statTotalText:SetText(string.format("Lifetime: %d Fish | %d Chests (%s)", tFish, tChests, GetChestPercent(tFish, tChests)))
+        end
     end
 
     if frame.lureStatus then
+        local statusText
         if hasLure then
             local s = math.floor(expires / 1000)
-            local timeStr = (s > 60) and (math.ceil(s/60) .. "m") or (s .. "s")
-            frame.lureStatus:SetText("Lure: " .. timeStr)
-            frame.lureStatus:SetTextColor(goldR, goldG, goldB)
+            statusText = "Lure: " .. ((s > 60) and (math.ceil(s/60) .. "m") or (s .. "s"))
         elseif lureCount == 0 then
-            frame.lureStatus:SetText("No lure in inventory")
-            frame.lureStatus:SetTextColor(1, 0.3, 0.3)
+            statusText = "No lure in inventory"
         else
-            frame.lureStatus:SetText("No lure active")
-            frame.lureStatus:SetTextColor(1, 0.3, 0.3)
+            statusText = "No lure active"
+        end
+        if frame._lastLureStatus ~= statusText then
+            frame._lastLureStatus = statusText
+            frame.lureStatus:SetText(statusText)
+            if hasLure then
+                frame.lureStatus:SetTextColor(goldR, goldG, goldB)
+            else
+                frame.lureStatus:SetTextColor(1, 0.3, 0.3)
+            end
         end
     end
 end
@@ -446,10 +474,11 @@ function FishingVolume_OnLoad(frame)
         end
     end)
 
+    -- Poll every 1s for lure timer. Inventory changes trigger immediate updates via OnEvent.
     frame.elapsed = 0
     frame:SetScript("OnUpdate", function()
         this.elapsed = this.elapsed + arg1
-        if this.elapsed > 0.5 then UpdateUtilityButtons(frame); this.elapsed = 0 end
+        if this.elapsed > 1.0 then UpdateUtilityButtons(frame); this.elapsed = 0 end
     end)
 
     FVSaveBtn = CreateStyledButton("FVSaveBtn", "Save")
