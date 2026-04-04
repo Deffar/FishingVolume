@@ -289,16 +289,33 @@ f:SetScript("OnEvent", function()
         end
 
     elseif event == "CHAT_MSG_LOOT" then
-        if not (string.find(arg1, "You receive loot") or string.find(arg1, "You create")) then return end
-        lastFishActivity = GetTime()
-        if string.find(arg1, "Raw") then
-            FishingVolume.sessionFish = FishingVolume.sessionFish + 1
-            SetSetting("totalFish", GetSetting("totalFish") + 1)
-        elseif string.find(arg1, "Trunk") then
-            FishingVolume.sessionChests = FishingVolume.sessionChests + 1
-            SetSetting("totalChests", GetSetting("totalChests") + 1)
+    if not (string.find(arg1, "You receive loot") or string.find(arg1, "You create")) then return end
+    lastFishActivity = GetTime()
+
+    local fishNames = {
+        "Raw ",
+        "Firefin Snapper",
+        "Oily Blackmouth",
+        "Lightning Eel",
+        "Plated Armorfish",
+    }
+
+    local isFish = false
+    for _, name in ipairs(fishNames) do
+        if string.find(arg1, name) then
+            isFish = true
+            break
         end
     end
+
+    if isFish then
+        FishingVolume.sessionFish = FishingVolume.sessionFish + 1
+        SetSetting("totalFish", GetSetting("totalFish") + 1)
+    elseif string.find(arg1, "Trunk") or string.find(arg1, "Locked Chest") then
+        FishingVolume.sessionChests = FishingVolume.sessionChests + 1
+        SetSetting("totalChests", GetSetting("totalChests") + 1)
+    end
+end
 end)
 
 f:SetScript("OnUpdate", function()
