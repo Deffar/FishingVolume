@@ -204,8 +204,10 @@ function UpdateUtilityButtons(frame)
     frame.lastLureCount = lureCount
 
     local function SetBorder(btn, r, g, b, a)
-        if btn.isHovered then return end
+        -- Always store the resting colour so OnLeave restores the correct value
         btn._restR, btn._restG, btn._restB, btn._restA = r, g, b, a or 1
+        -- Skip the visual update while hovered — the hover highlight is showing
+        if btn.isHovered then return end
         local cr, cg, cb = btn:GetBackdropBorderColor()
         if math.abs((cr or 0) - r) < 0.01 and math.abs((cg or 0) - g) < 0.01
            and math.abs((cb or 0) - b) < 0.01 then return end
@@ -458,7 +460,7 @@ function FishingVolume_OnLoad(frame)
     xText:SetTextColor(0.7, 0.2, 0.2)
     close:SetScript("OnClick", function() frame:Hide() end)
 
-    local function MakeSlider(name, label, minVal, maxVal, step, yOff)
+    local function MakeSlider(name, label, minVal, maxVal, step, yOff, saveFn)
         local s = CreateFrame("Slider", name, frame, "OptionsSliderTemplate")
         s:SetMinMaxValues(minVal, maxVal) s:SetValueStep(step)
         s:SetWidth(SLIDER_W) s:SetHeight(14)
@@ -493,6 +495,7 @@ function FishingVolume_OnLoad(frame)
             local suffix = (name == "FVDelaySlider") and "s" or "%"
             s.valText:SetText(val .. suffix)
             if not s.isTyping then eb:SetText(val .. suffix) end
+            if saveFn then saveFn(val) end
         end)
 
         eb:SetScript("OnEditFocusGained", function() s.isTyping = true; s.valText:SetAlpha(0) end)
@@ -514,9 +517,12 @@ function FishingVolume_OnLoad(frame)
         return s
     end
 
-    frame.fishSlider  = MakeSlider("FVFishSlider",  "Fishing Volume",  0, 100, 1, -55)
-    frame.soundSlider = MakeSlider("FVSoundSlider", "Restored Volume", 0, 100, 1, -95)
-    frame.delaySlider = MakeSlider("FVDelaySlider", "Restore Delay",   0,  60, 1, -140)
+    frame.fishSlider  = MakeSlider("FVFishSlider",  "Fishing Volume",  0, 100, 1, -55,
+        function(val) FishingVolume.SetSetting("fishingVolume", val / 100) end)
+    frame.soundSlider = MakeSlider("FVSoundSlider", "Restored Volume", 0, 100, 1, -95,
+        function(val) FishingVolume.SetSetting("soundVolume", val / 100) end)
+    frame.delaySlider = MakeSlider("FVDelaySlider", "Restore Delay",   0,  60, 1, -140,
+        function(val) FishingVolume.SetSetting("muteDelay", val) end)
 
     local chk = CreateFrame("CheckButton", "FVMuteOnStopCheck", frame, "OptionsCheckButtonTemplate")
     chk:SetWidth(18) chk:SetHeight(18)
@@ -527,7 +533,6 @@ function FishingVolume_OnLoad(frame)
     chkText:SetText("Restore Volume Automatically when not Fishing")
     chkText:SetTextColor(1.0, 0.82, 0)
     chkText:SetPoint("LEFT", chk, "RIGHT", 5, 0)
-
     local checkTex = chk:GetCheckedTexture()
     if checkTex then
         checkTex:SetTexture(1, 0.82, 0, 0.8)
@@ -535,12 +540,10 @@ function FishingVolume_OnLoad(frame)
         checkTex:SetPoint("TOPLEFT", chk, "TOPLEFT", 5, -5)
         checkTex:SetPoint("BOTTOMRIGHT", chk, "BOTTOMRIGHT", -5, 5)
     end
-
     chk:SetScript("OnClick", function()
         FishingVolume.SetSetting("muteOnStop", this:GetChecked() == 1)
         UpdateDelaySliderState(frame)
     end)
-
     local chkLabelBtn = CreateFrame("Button", nil, frame)
     chkLabelBtn:SetPoint("TOPLEFT", chk, "TOPLEFT", 0, 0)
     chkLabelBtn:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -PAD, -205)
@@ -558,7 +561,6 @@ function FishingVolume_OnLoad(frame)
     chkRecastText:SetText("Left-click for re-cast Fishing")
     chkRecastText:SetTextColor(1.0, 0.82, 0)
     chkRecastText:SetPoint("LEFT", chkRecast, "RIGHT", 5, 0)
-
     local checkRecastTex = chkRecast:GetCheckedTexture()
     if checkRecastTex then
         checkRecastTex:SetTexture(1, 0.82, 0, 0.8)
@@ -566,11 +568,9 @@ function FishingVolume_OnLoad(frame)
         checkRecastTex:SetPoint("TOPLEFT", chkRecast, "TOPLEFT", 5, -5)
         checkRecastTex:SetPoint("BOTTOMRIGHT", chkRecast, "BOTTOMRIGHT", -5, 5)
     end
-
     chkRecast:SetScript("OnClick", function()
         FishingVolume.SetSetting("autoRecast", this:GetChecked() == 1)
     end)
-
     local chkRecastLabelBtn = CreateFrame("Button", nil, frame)
     chkRecastLabelBtn:SetPoint("TOPLEFT", chkRecast, "TOPLEFT", 0, 0)
     chkRecastLabelBtn:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -PAD, -227)
@@ -579,8 +579,12 @@ function FishingVolume_OnLoad(frame)
     chkRecastLabelBtn:SetScript("OnLeave", function() chkRecast.isHovered = false; UpdateDelaySliderState(frame) end)
     frame.autoRecastCheck = chkRecast
 
+    -- ----------------------------------------------------------------
+    -- UTILITY BUTTONS  (4 buttons, 2 rows × 2 columns)
+    --   Row 1: [Equip Pole]  [Equip Weapons]
+    --   Row 2: [Cast Fishing] [Apply Lure]
+    -- ----------------------------------------------------------------
     local btnW = (FRAME_W - PAD * 2 - 6) / 2
-
     local function CreateStyledButton(name, text, parent)
         local b = CreateFrame("Button", name, parent or frame, "UIPanelButtonTemplate")
         b:SetWidth(btnW) b:SetHeight(22)
@@ -589,6 +593,7 @@ function FishingVolume_OnLoad(frame)
         return b
     end
 
+    -- Row 1
     FVPoleBtn = CreateStyledButton("FVPoleBtn", "Equip Pole")
     FVPoleBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -233)
     FVPoleBtn:SetScript("OnClick", function()
@@ -598,123 +603,135 @@ function FishingVolume_OnLoad(frame)
     end)
     frame.poleBtn = FVPoleBtn
 
-    FVWeaponBtn = CreateStyledButton("FVWeaponBtn", "Equip Weapons")
-    FVWeaponBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -233)
-    FVWeaponBtn:SetScript("OnClick", function()
+    FVWeapBtn = CreateStyledButton("FVWeapBtn", "Equip Weapons")
+    FVWeapBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD + btnW + 6, -233)
+    FVWeapBtn:SetScript("OnClick", function()
         FishingVolume:EquipWeapons()
         UpdateUtilityButtons(frame)
         if FVMiniPanel and FVMiniPanel:IsVisible() then UpdateUtilityButtons(FVMiniPanel) end
     end)
-    frame.weapBtn = FVWeaponBtn
+    frame.weapBtn = FVWeapBtn
 
-    frame.fishBtn = CreateStyledButton("FVFishBtn", "Fish")
-    frame.fishBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -258)
-    frame.fishBtn:SetScript("OnClick", function()
-        FishingVolume:CastFishing() -- Updated to use centralized function
-    end)
-
-    frame.lureBtn = CreateStyledButton("FVLureButton", "Apply Lure")
-    frame.lureBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -258)
-    frame.lureBtn:SetScript("OnClick", function()
-        FishingVolume:ApplyBestLure()
+    -- Row 2
+    FVFishBtn = CreateStyledButton("FVFishBtn", "Cast Fishing")
+    FVFishBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -260)
+    FVFishBtn:SetScript("OnClick", function()
+        FishingVolume:CastFishing()
         UpdateUtilityButtons(frame)
         if FVMiniPanel and FVMiniPanel:IsVisible() then UpdateUtilityButtons(FVMiniPanel) end
     end)
+    frame.fishBtn = FVFishBtn
 
-    frame.lureTimeText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.lureTimeText:SetPoint("TOPLEFT", frame.fishBtn, "BOTTOMLEFT", 0, -8)
-    frame.lureTimeText:SetTextColor(1, 1, 1)
+    FVLureBtn = CreateStyledButton("FVLureBtn", "Apply Lure")
+    FVLureBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD + btnW + 6, -260)
+    FVLureBtn:SetScript("OnClick", function()
+        FishingVolume:ApplyBestLure()  -- FIX: was incorrectly calling ApplyLure()
+        UpdateUtilityButtons(frame)
+        if FVMiniPanel and FVMiniPanel:IsVisible() then UpdateUtilityButtons(FVMiniPanel) end
+    end)
+    frame.lureBtn = FVLureBtn
 
-    frame.lureInvText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.lureInvText:SetPoint("TOPLEFT", frame.lureTimeText, "BOTTOMLEFT", 0, -4)
-    frame.lureInvText:SetTextColor(1, 1, 1)
+    -- ----------------------------------------------------------------
+    -- INFO LABELS
+    -- ----------------------------------------------------------------
+    local function MakeInfoText(y, size)
+        local t = frame:CreateFontString(nil, "OVERLAY", size or "GameFontHighlightSmall")
+        t:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, y)
+        t:SetWidth(FRAME_W - PAD * 2)
+        t:SetJustifyH("LEFT")
+        return t
+    end
 
-    local lureDivider = frame:CreateTexture(nil, "ARTWORK")
-    lureDivider:SetHeight(1)
-    lureDivider:SetPoint("TOPLEFT", frame.lureInvText, "BOTTOMLEFT", 0, -7)
-    lureDivider:SetPoint("RIGHT", frame, "RIGHT", -PAD, 0)
-    lureDivider:SetTexture(0.3, 0.3, 0.3, 1)
+    frame.lureTimeText = MakeInfoText(-295)
+    frame.lureInvText  = MakeInfoText(-310)
 
-    frame.zoneNameText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.zoneNameText:SetPoint("TOPLEFT", frame.lureInvText, "BOTTOMLEFT", 0, -18)
+    -- Zone section divider
+    local divZ = frame:CreateTexture(nil, "ARTWORK")
+    divZ:SetHeight(1); divZ:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -328)
+    divZ:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -328); divZ:SetTexture(0.3, 0.3, 0.3, 1)
 
-    frame.zoneReqText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.zoneReqText:SetPoint("TOPLEFT", frame.zoneNameText, "BOTTOMLEFT", 0, -2)
+    -- Zones browser button — full width of the right column, same height as utility buttons
+    local btnZones = CreateStyledButton("FVZonesBrowserBtn", "Zones")
+    btnZones:SetWidth(btnW)
+    btnZones:SetHeight(22)
+    btnZones:ClearAllPoints()
+    btnZones:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD + btnW + 6, -333)
+    btnZones:SetScript("OnClick", function()
+        if FishingVolume_ToggleZonesFrame then FishingVolume_ToggleZonesFrame() end
+    end)
 
-    frame.zoneSuccessText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.zoneSuccessText:SetPoint("TOPLEFT", frame.zoneReqText, "BOTTOMLEFT", 0, -2)
+    -- Zone name sits in the left column next to the Zones button
+    local zoneNameText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    zoneNameText:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -338)
+    zoneNameText:SetWidth(btnW)
+    zoneNameText:SetJustifyH("LEFT")
+    frame.zoneNameText = zoneNameText
 
-    frame.zoneFishText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.zoneFishText:SetPoint("TOPLEFT", frame.zoneSuccessText, "BOTTOMLEFT", 0, -2)
+    frame.zoneReqText     = MakeInfoText(-353)
+    frame.zoneSuccessText = MakeInfoText(-368)
+    frame.zoneFishText    = MakeInfoText(-383)
 
-    local divider = frame:CreateTexture(nil, "ARTWORK")
-    divider:SetHeight(1)
-    divider:SetPoint("TOPLEFT",  frame.zoneFishText, "BOTTOMLEFT", 0, -7)
-    divider:SetPoint("RIGHT", frame, "RIGHT", -PAD, 0)
-    divider:SetTexture(0.3, 0.3, 0.3, 1)
+    -- Stats section divider
+    local divS = frame:CreateTexture(nil, "ARTWORK")
+    divS:SetHeight(1); divS:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -400)
+    divS:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -400); divS:SetTexture(0.3, 0.3, 0.3, 1)
 
-    frame.statSessionText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.statSessionText:SetPoint("TOPLEFT", frame.zoneFishText, "BOTTOMLEFT", 0, -18)
+    frame.statSessionText = MakeInfoText(-410)
+    frame.statTotalText   = MakeInfoText(-425)
 
-    frame.statTotalText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.statTotalText:SetPoint("TOPLEFT", frame.statSessionText, "BOTTOMLEFT", 0, -4)
+    -- Bottom divider above Save / Close
+    local divB = frame:CreateTexture(nil, "ARTWORK")
+    divB:SetHeight(1); divB:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -445)
+    divB:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -445); divB:SetTexture(0.3, 0.3, 0.3, 1)
 
+    -- Save button
+    local saveBtn = CreateStyledButton("FVSaveBtn", "Save")
+    saveBtn:SetWidth(btnW) saveBtn:SetHeight(22)
+    saveBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -450)
+    saveBtn:SetScript("OnClick", function()
+        -- Settings are saved live via slider OnValueChanged and checkbox OnClick.
+        -- This button provides explicit confirmation and closes the panel.
+        DEFAULT_CHAT_FRAME:AddMessage("|cff33cc99FishingVolume:|r Settings saved.")
+    end)
+
+    -- Close button
+    local closeBottomBtn = CreateStyledButton("FVCloseBtn", "Close")
+    closeBottomBtn:SetWidth(btnW) closeBottomBtn:SetHeight(22)
+    closeBottomBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD + btnW + 6, -450)
+    closeBottomBtn:SetScript("OnClick", function() frame:Hide() end)
+
+    -- Instantly refresh when gear changes (equip/unequip)
     frame:SetScript("OnEvent", function()
-        if event == "UNIT_INVENTORY_CHANGED" and arg1 == "player" then
-            if FishingVolume.RefreshZoneSkill then FishingVolume.RefreshZoneSkill() end
+        if event == "UNIT_INVENTORY_CHANGED" then
             UpdateUtilityButtons(frame)
         end
     end)
 
-    -- Poll every 1s for lure timer. Inventory changes trigger immediate updates via OnEvent.
-    frame.elapsed = 0
+    -- Periodic refresh so lure timer and cast state stay current
+    frame._elapsed = 0
     frame:SetScript("OnUpdate", function()
-        this.elapsed = this.elapsed + arg1
-        if this.elapsed > 1.0 then UpdateUtilityButtons(frame); this.elapsed = 0 end
+        frame._elapsed = frame._elapsed + arg1
+        if frame._elapsed >= 0.5 then
+            frame._elapsed = 0
+            UpdateUtilityButtons(frame)
+        end
     end)
-
-    FVSaveBtn = CreateStyledButton("FVSaveBtn", "Save")
-    FVSaveBtn:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", PAD, 15)
-    FVSaveBtn:SetScript("OnClick", function()
-        FishingVolume.SetSetting("fishingVolume", frame.fishSlider:GetValue() / 100)
-        FishingVolume.SetSetting("soundVolume",   frame.soundSlider:GetValue() / 100)
-        FishingVolume.SetSetting("muteDelay",     frame.delaySlider:GetValue())
-        FishingVolume.SetSetting("muteOnStop",    (frame.muteOnStopCheck:GetChecked() == 1))
-        FishingVolume.SetSetting("autoRecast",    (frame.autoRecastCheck:GetChecked() == 1))
-        SetCVar("SoundVolume", tostring(frame.soundSlider:GetValue() / 100))
-        DEFAULT_CHAT_FRAME:AddMessage("|cff33cc99FishingVolume:|r Settings saved.")
-    end)
-
-    FVCloseBtn = CreateStyledButton("FVCloseBtn", "Close")
-    FVCloseBtn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -PAD, 15)
-    FVCloseBtn:SetScript("OnClick", function() FishingVolumeFrame:Hide() end)
 end
 
 function FishingVolume_OnShow(frame)
-    if not frame.fishSlider then return end
     frame.fishSlider:SetValue(FishingVolume.GetSetting("fishingVolume") * 100)
-    frame.soundSlider:SetValue(FishingVolume.GetSetting("soundVolume") * 100)
+    frame.soundSlider:SetValue((FishingVolume.GetSetting("soundVolume") or 0) * 100)
     frame.delaySlider:SetValue(FishingVolume.GetSetting("muteDelay"))
     frame.muteOnStopCheck:SetChecked(FishingVolume.GetSetting("muteOnStop"))
     frame.autoRecastCheck:SetChecked(FishingVolume.GetSetting("autoRecast"))
     UpdateDelaySliderState(frame)
+    FishingVolume.RefreshZoneSkill()
     UpdateUtilityButtons(frame)
 end
 
 -- ================================================================
 -- MINI PANEL
 -- ================================================================
-
-function FishingVolume_ToggleMiniPanel()
-    if not FVMiniPanel then
-        FishingVolume_CreateMiniPanel()
-    end
-    if FVMiniPanel:IsVisible() then
-        FVMiniPanel:Hide()
-    else
-        FVMiniPanel:Show()
-    end
-end
 
 function FishingVolume_CreateMiniPanel()
     if FVMiniPanel then return end
@@ -765,14 +782,14 @@ function FishingVolume_CreateMiniPanel()
     closeBtn:SetScript("OnEnter", function() this:SetBackdropBorderColor(1, 0.2, 0.2, 1) end)
     closeBtn:SetScript("OnLeave", function() this:SetBackdropBorderColor(0.2, 0.2, 0.2, 1) end)
 
-    local mPAD   = 8
-    local mBtnW   = (180 - mPAD * 2 - 4) / 2
-    local mBtnH   = 22
+    local mPAD  = 8
+    local mBtnW = (180 - mPAD * 2 - 4) / 2  -- two columns with a 4px gap
+    local mBtnH = 22
 
-    local function MakeMiniBtn(name, text, point, xOff, yOff)
-        local b = CreateFrame("Button", name, frame, "UIPanelButtonTemplate")
+    local function MakeMiniBtn(text, xOff, yOff)
+        local b = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
         b:SetWidth(mBtnW) b:SetHeight(mBtnH)
-        b:SetPoint(point, frame, point, xOff, yOff)
+        b:SetPoint("TOPLEFT", frame, "TOPLEFT", xOff, yOff)
         b:SetText(text)
         b:GetFontString():SetTextColor(1.0, 0.82, 0)
         b:SetBackdrop({
@@ -790,36 +807,43 @@ function FishingVolume_CreateMiniPanel()
             this.isHovered = false
             local r = this._restR or 0.2
             local g = this._restG or 0.2
-            local b = this._restB or 0.2
+            local bv = this._restB or 0.2
             local a = this._restA or 1
-            this:SetBackdropBorderColor(r, g, b, a)
+            this:SetBackdropBorderColor(r, g, bv, a)
         end)
 
-        if b.GetNormalTexture    and b:GetNormalTexture()    then b:GetNormalTexture():SetTexture(nil)    end
-        if b.GetPushedTexture    and b:GetPushedTexture()    then b:GetPushedTexture():SetTexture(nil)    end
-        if b.GetHighlightTexture and b:GetHighlightTexture() then b:GetHighlightTexture():SetTexture(nil) end
-        if b.GetDisabledTexture  and b:GetDisabledTexture()  then b:GetDisabledTexture():SetTexture(nil)  end
+        if b:GetNormalTexture()    then b:GetNormalTexture():SetTexture(nil)    end
+        if b:GetPushedTexture()    then b:GetPushedTexture():SetTexture(nil)    end
+        if b:GetHighlightTexture() then b:GetHighlightTexture():SetTexture(nil) end
+        if b:GetDisabledTexture()  then b:GetDisabledTexture():SetTexture(nil)  end
 
+        -- Wrap Enable/Disable to suppress Blizzard textures re-appearing
         b._Enable  = b.Enable
         b._Disable = b.Disable
         b.Enable = function(self)
             self._Enable(self)
-            if self.GetNormalTexture    and self:GetNormalTexture()    then self:GetNormalTexture():SetTexture(nil)    end
-            if self.GetDisabledTexture  and self:GetDisabledTexture()  then self:GetDisabledTexture():SetTexture(nil)  end
+            if self:GetNormalTexture()   then self:GetNormalTexture():SetTexture(nil)   end
+            if self:GetDisabledTexture() then self:GetDisabledTexture():SetTexture(nil) end
         end
         b.Disable = function(self)
             self._Disable(self)
-            if self.GetNormalTexture    and self:GetNormalTexture()    then self:GetNormalTexture():SetTexture(nil)    end
-            if self.GetDisabledTexture  and self:GetDisabledTexture()  then self:GetDisabledTexture():SetTexture(nil)  end
+            if self:GetNormalTexture()   then self:GetNormalTexture():SetTexture(nil)   end
+            if self:GetDisabledTexture() then self:GetDisabledTexture():SetTexture(nil) end
         end
 
         return b
     end
 
-    local poleBtn   = MakeMiniBtn(nil, "Equip Pole",     "TOPLEFT",   mPAD,  -22)
-    local weapBtn   = MakeMiniBtn(nil, "Equip Weapons", "TOPRIGHT", -mPAD, -22)
-    local fishBtn   = MakeMiniBtn(nil, "Fish",           "TOPLEFT",   mPAD,  -48)
-    local lureBtn   = MakeMiniBtn(nil, "Apply Lure",     "TOPRIGHT", -mPAD, -48)
+    -- Layout: left col = mPAD, right col = mPAD + mBtnW + 4
+    local col1 = mPAD
+    local col2 = mPAD + mBtnW + 4
+
+    --   Row 1: Equip Pole | Equip Weapons
+    --   Row 2: Cast Fish  | Apply Lure
+    local poleBtn = MakeMiniBtn("Equip Pole",    col1, -22)
+    local weapBtn = MakeMiniBtn("Equip Weapons", col2, -22)
+    local fishBtn = MakeMiniBtn("Fish",          col1, -48)
+    local lureBtn = MakeMiniBtn("Apply Lure",    col2, -48)
 
     poleBtn:SetScript("OnClick", function()
         FishingVolume:EquipPole()
@@ -832,7 +856,7 @@ function FishingVolume_CreateMiniPanel()
         if FishingVolumeFrame and FishingVolumeFrame:IsVisible() then UpdateUtilityButtons(FishingVolumeFrame) end
     end)
     fishBtn:SetScript("OnClick", function()
-        FishingVolume:CastFishing() -- Updated to use centralized function
+        FishingVolume:CastFishing()
     end)
     lureBtn:SetScript("OnClick", function()
         FishingVolume:ApplyBestLure()
@@ -862,4 +886,460 @@ function FishingVolume_CreateMiniPanel()
             this.elapsed = 0
         end
     end)
+end
+
+-- FIX: This function was called from MinimapButton.lua and FishingVolume.lua
+-- but was never defined, making the mini panel completely inaccessible.
+function FishingVolume_ToggleMiniPanel()
+    FishingVolume_CreateMiniPanel()
+    if FVMiniPanel:IsVisible() then
+        FVMiniPanel:Hide()
+    else
+        FVMiniPanel:Show()
+    end
+end
+
+-- ================================================================
+-- ZONES BROWSER (canonical implementation — ZonesBrowser.lua defers here)
+-- ================================================================
+
+local FVZonesFrame = nil
+
+local function FVStyleBtn(b, active)
+    local n = b:GetName()
+    if n then
+        local t = { "Left","Middle","Right","DisabledLeft","DisabledMiddle","DisabledRight" }
+        for _, v in pairs(t) do
+            if getglobal(n..v) then getglobal(n..v):SetTexture(nil) end
+        end
+    end
+    if b:GetNormalTexture()    then b:GetNormalTexture():SetTexture(nil)    end
+    if b:GetPushedTexture()    then b:GetPushedTexture():SetTexture(nil)    end
+    if b:GetHighlightTexture() then b:GetHighlightTexture():SetTexture(nil) end
+    if b:GetDisabledTexture()  then b:GetDisabledTexture():SetTexture(nil)  end
+
+    b:SetBackdrop({
+        bgFile   = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        tile = false, tileSize = 0, edgeSize = 1,
+        insets = { left = 0, right = 0, top = 0, bottom = 0 }
+    })
+    b:SetBackdropColor(0, 0, 0, 1)
+
+    if active then
+        b:SetBackdropBorderColor(1.0, 0.82, 0, 1)
+    else
+        b:SetBackdropBorderColor(0.2, 0.2, 0.2, 1)
+    end
+end
+
+local function FVGetFishingSkill()
+    for i = 1, GetNumSkillLines() do
+        local name, _, _, rank, _, modifier = GetSkillLineInfo(i)
+        if name == "Fishing" then
+            return (tonumber(rank) or 0), (tonumber(modifier) or 0)
+        end
+    end
+    return 0, 0
+end
+
+local function FVLvlC(lvl, pl)
+    local d = lvl - pl
+    if d >= 5 then      return "|cffff3333"
+    elseif d >= 3 then  return "|cffff9900"
+    elseif d >= -2 then return "|cffffff00"
+    elseif d >= -5 then return "|cff00cc00"
+    else                return "|cffaaaaaa"
+    end
+end
+
+local function FVFishC(full, min)
+    local base, bonus = FVGetFishingSkill()
+    local total = base + bonus
+    if total >= full then     return 0.0, 0.8, 0.0
+    elseif total >= min then  return 1.0, 0.6, 0.0
+    else                      return 1.0, 0.2, 0.2
+    end
+end
+
+local function FVSetBtnColor(btn, full, min, active)
+    local r, g, b = FVFishC(full, min)
+    if active then
+        btn:GetFontString():SetTextColor(r, g, b)
+    else
+        btn:GetFontString():SetTextColor(r*0.6, g*0.6, b*0.6)
+    end
+end
+
+-- Returns the display label for a bracket button, e.g. "Skill 1-25  74%"
+local function FVBracketLabel(minSkill, full)
+    local base, bonus = FVGetFishingSkill()
+    local skill = base + bonus
+    local pct
+    if skill >= full then
+        pct = "100%"
+    elseif skill < minSkill then
+        pct = "0%"
+    else
+        local sRatio = (skill - minSkill) / (full - minSkill)
+        pct = math.floor(sRatio * 100 + 0.5) .. "%"
+    end
+    return "Skill " .. minSkill .. "-" .. full .. "  " .. pct
+end
+
+-- Refreshes all six bracket button labels (called on open and after skill changes)
+local function FVRefreshBracketLabels()
+    if not FVZonesFrame then return end
+    local brackets = {
+        { btn = FVZonesFrame.btn1, min = 1,   full = 25  },
+        { btn = FVZonesFrame.btn2, min = 1,   full = 75  },
+        { btn = FVZonesFrame.btn3, min = 55,  full = 150 },
+        { btn = FVZonesFrame.btn4, min = 130, full = 225 },
+        { btn = FVZonesFrame.btn5, min = 205, full = 300 },
+        { btn = FVZonesFrame.btn6, min = 280, full = 375 },
+    }
+    for _, b in ipairs(brackets) do
+        if b.btn then b.btn:SetText(FVBracketLabel(b.min, b.full)) end
+    end
+end
+
+local function FVUpdateSkill()
+    if not FVZonesFrame or not FVZonesFrame.skillText then return end
+    local base, bonus = FVGetFishingSkill()
+    local total = base + bonus
+    local G  = "|cffffd100"  -- gold
+    local W  = "|cffffffff"  -- white
+    local GR = "|cff00cc00"  -- green  (bonus / total)
+    local R  = "|r"
+    local s = G.."Fishing: "..R..W..base..R
+    if bonus > 0 then
+        s = s..W.." ("..R..GR.."+"..bonus.." = "..total..R..W..")"..R
+    end
+    FVZonesFrame.skillText:SetText(s)
+    FVRefreshBracketLabels()
+end
+
+local function FVShowBracket1()
+    local pl = UnitLevel("player")
+    local nl = string.char(10)
+    local EK = "|cff9999ffEK:|r "
+    local KL = "|cffff9999KL:|r "
+
+    FVZonesFrame.zoneList:SetText(
+        EK .. "|cffffd100Dun Morogh|r (" .. FVLvlC(1,pl) .. "1|r-" .. FVLvlC(10,pl) .. "10|r)" .. nl ..
+        EK .. "|cffffd100Elwynn Forest|r (" .. FVLvlC(1,pl) .. "1|r-" .. FVLvlC(10,pl) .. "10|r)" .. nl ..
+        EK .. "|cffffd100Tirisfal Glades|r (" .. FVLvlC(1,pl) .. "1|r-" .. FVLvlC(10,pl) .. "10|r)" .. nl ..
+        KL .. "|cffffd100Durotar|r (" .. FVLvlC(1,pl) .. "1|r-" .. FVLvlC(10,pl) .. "10|r)" .. nl ..
+        KL .. "|cffffd100Mulgore|r (" .. FVLvlC(1,pl) .. "1|r-" .. FVLvlC(10,pl) .. "10|r)" .. nl ..
+        KL .. "|cffffd100Teldrassil|r (" .. FVLvlC(1,pl) .. "1|r-" .. FVLvlC(10,pl) .. "10|r)"
+    )
+
+    FVStyleBtn(FVZonesFrame.btn1, true)
+    FVStyleBtn(FVZonesFrame.btn2, false)
+    FVStyleBtn(FVZonesFrame.btn3, false)
+    FVStyleBtn(FVZonesFrame.btn4, false)
+    FVStyleBtn(FVZonesFrame.btn5, false)
+    FVStyleBtn(FVZonesFrame.btn6, false)
+
+    FVSetBtnColor(FVZonesFrame.btn1, 25, 1, true)
+    FVSetBtnColor(FVZonesFrame.btn2, 75, 1, false)
+    FVSetBtnColor(FVZonesFrame.btn3, 150, 55, false)
+    FVSetBtnColor(FVZonesFrame.btn4, 225, 130, false)
+    FVSetBtnColor(FVZonesFrame.btn5, 300, 205, false)
+    FVSetBtnColor(FVZonesFrame.btn6, 375, 280, false)
+end
+
+local function FVShowBracket2()
+    local pl = UnitLevel("player")
+    local nl = string.char(10)
+    local EK = "|cff9999ffEK:|r "
+    local KL = "|cffff9999KL:|r "
+
+    FVZonesFrame.zoneList:SetText(
+        EK .. "|cffffd100Ironforge|r (" .. FVLvlC(1,pl) .. "1|r-" .. FVLvlC(10,pl) .. "10|r)" .. nl ..
+        EK .. "|cffffd100Stormwind City|r (" .. FVLvlC(1,pl) .. "1|r-" .. FVLvlC(10,pl) .. "10|r)" .. nl ..
+        EK .. "|cffffd100Undercity|r (" .. FVLvlC(1,pl) .. "1|r-" .. FVLvlC(10,pl) .. "10|r)" .. nl ..
+        EK .. "|cffffd100Loch Modan|r (" .. FVLvlC(10,pl) .. "10|r-" .. FVLvlC(20,pl) .. "20|r)" .. nl ..
+        EK .. "|cffffd100Silverpine Forest|r (" .. FVLvlC(10,pl) .. "10|r-" .. FVLvlC(20,pl) .. "20|r)" .. nl ..
+        EK .. "|cffffd100Westfall|r (" .. FVLvlC(10,pl) .. "10|r-" .. FVLvlC(20,pl) .. "20|r)" .. nl ..
+        EK .. "|cffffd100The Deadmines|r (" .. FVLvlC(15,pl) .. "15|r-" .. FVLvlC(20,pl) .. "20|r)" .. nl ..
+        KL .. "|cffffd100Darnassus|r (" .. FVLvlC(1,pl) .. "1|r-" .. FVLvlC(10,pl) .. "10|r)" .. nl ..
+        KL .. "|cffffd100Orgrimmar|r (" .. FVLvlC(1,pl) .. "1|r-" .. FVLvlC(10,pl) .. "10|r)" .. nl ..
+        KL .. "|cffffd100Thunder Bluff|r (" .. FVLvlC(1,pl) .. "1|r-" .. FVLvlC(10,pl) .. "10|r)" .. nl ..
+        KL .. "|cffffd100Darkshore|r (" .. FVLvlC(10,pl) .. "10|r-" .. FVLvlC(20,pl) .. "20|r)" .. nl ..
+        KL .. "|cffffd100The Barrens|r (" .. FVLvlC(10,pl) .. "10|r-" .. FVLvlC(25,pl) .. "25|r)" .. nl ..
+        KL .. "|cffffd100The Wailing Caverns|r (" .. FVLvlC(15,pl) .. "15|r-" .. FVLvlC(25,pl) .. "25|r)" .. nl ..
+        KL .. "|cffffd100Blackfathom Deeps|r (" .. FVLvlC(20,pl) .. "20|r-" .. FVLvlC(30,pl) .. "30|r)"
+    )
+
+    FVStyleBtn(FVZonesFrame.btn1, false)
+    FVStyleBtn(FVZonesFrame.btn2, true)
+    FVStyleBtn(FVZonesFrame.btn3, false)
+    FVStyleBtn(FVZonesFrame.btn4, false)
+    FVStyleBtn(FVZonesFrame.btn5, false)
+    FVStyleBtn(FVZonesFrame.btn6, false)
+
+    FVSetBtnColor(FVZonesFrame.btn1, 25, 1, false)
+    FVSetBtnColor(FVZonesFrame.btn2, 75, 1, true)
+    FVSetBtnColor(FVZonesFrame.btn3, 150, 55, false)
+    FVSetBtnColor(FVZonesFrame.btn4, 225, 130, false)
+    FVSetBtnColor(FVZonesFrame.btn5, 300, 205, false)
+    FVSetBtnColor(FVZonesFrame.btn6, 375, 280, false)
+end
+
+local function FVShowBracket3()
+    local pl = UnitLevel("player")
+    local nl = string.char(10)
+    local EK = "|cff9999ffEK:|r "
+    local KL = "|cffff9999KL:|r "
+
+    FVZonesFrame.zoneList:SetText(
+        EK .. "|cffffd100Hillsbrad Foothills|r (" .. FVLvlC(15,pl) .. "15|r-" .. FVLvlC(25,pl) .. "25|r)" .. nl ..
+        EK .. "|cffffd100Redridge Mountains|r (" .. FVLvlC(15,pl) .. "15|r-" .. FVLvlC(25,pl) .. "25|r)" .. nl ..
+        EK .. "|cffffd100Duskwood|r (" .. FVLvlC(18,pl) .. "18|r-" .. FVLvlC(30,pl) .. "30|r)" .. nl ..
+        EK .. "|cffffd100Wetlands|r (" .. FVLvlC(20,pl) .. "20|r-" .. FVLvlC(30,pl) .. "30|r)" .. nl ..
+        KL .. "|cffffd100Stonetalon Mountains|r (" .. FVLvlC(15,pl) .. "15|r-" .. FVLvlC(27,pl) .. "27|r)" .. nl ..
+        KL .. "|cffffd100Ashenvale|r (" .. FVLvlC(18,pl) .. "18|r-" .. FVLvlC(30,pl) .. "30|r)"
+    )
+
+    FVStyleBtn(FVZonesFrame.btn1, false)
+    FVStyleBtn(FVZonesFrame.btn2, false)
+    FVStyleBtn(FVZonesFrame.btn3, true)
+    FVStyleBtn(FVZonesFrame.btn4, false)
+    FVStyleBtn(FVZonesFrame.btn5, false)
+    FVStyleBtn(FVZonesFrame.btn6, false)
+
+    FVSetBtnColor(FVZonesFrame.btn1, 25, 1, false)
+    FVSetBtnColor(FVZonesFrame.btn2, 75, 1, false)
+    FVSetBtnColor(FVZonesFrame.btn3, 150, 55, true)
+    FVSetBtnColor(FVZonesFrame.btn4, 225, 130, false)
+    FVSetBtnColor(FVZonesFrame.btn5, 300, 205, false)
+    FVSetBtnColor(FVZonesFrame.btn6, 375, 280, false)
+end
+
+local function FVShowBracket4()
+    local pl = UnitLevel("player")
+    local nl = string.char(10)
+    local EK = "|cff9999ffEK:|r "
+    local KL = "|cffff9999KL:|r "
+
+    FVZonesFrame.zoneList:SetText(
+        EK .. "|cffffd100Arathi Highlands|r (" .. FVLvlC(25,pl) .. "25|r-" .. FVLvlC(35,pl) .. "35|r)" .. nl ..
+        EK .. "|cffffd100Scarlet Monastery|r (" .. FVLvlC(28,pl) .. "28|r-" .. FVLvlC(45,pl) .. "45|r)" .. nl ..
+        EK .. "|cffffd100Alterac Mountains|r (" .. FVLvlC(30,pl) .. "30|r-" .. FVLvlC(40,pl) .. "40|r)" .. nl ..
+        EK .. "|cffffd100Stranglethorn Vale|r (" .. FVLvlC(30,pl) .. "30|r-" .. FVLvlC(45,pl) .. "45|r)" .. nl ..
+        EK .. "|cffffd100Swamp of Sorrows|r (" .. FVLvlC(35,pl) .. "35|r-" .. FVLvlC(45,pl) .. "45|r)" .. nl ..
+        KL .. "|cffffd100Thousand Needles|r (" .. FVLvlC(25,pl) .. "25|r-" .. FVLvlC(35,pl) .. "35|r)" .. nl ..
+        KL .. "|cffffd100Desolace|r (" .. FVLvlC(30,pl) .. "30|r-" .. FVLvlC(40,pl) .. "40|r)" .. nl ..
+        KL .. "|cffffd100Dustwallow Marsh|r (" .. FVLvlC(35,pl) .. "35|r-" .. FVLvlC(45,pl) .. "45|r)"
+    )
+
+    FVStyleBtn(FVZonesFrame.btn1, false)
+    FVStyleBtn(FVZonesFrame.btn2, false)
+    FVStyleBtn(FVZonesFrame.btn3, false)
+    FVStyleBtn(FVZonesFrame.btn4, true)
+    FVStyleBtn(FVZonesFrame.btn5, false)
+    FVStyleBtn(FVZonesFrame.btn6, false)
+
+    FVSetBtnColor(FVZonesFrame.btn1, 25, 1, false)
+    FVSetBtnColor(FVZonesFrame.btn2, 75, 1, false)
+    FVSetBtnColor(FVZonesFrame.btn3, 150, 55, false)
+    FVSetBtnColor(FVZonesFrame.btn4, 225, 130, true)
+    FVSetBtnColor(FVZonesFrame.btn5, 300, 205, false)
+    FVSetBtnColor(FVZonesFrame.btn6, 375, 280, false)
+end
+
+local function FVShowBracket5()
+    local pl = UnitLevel("player")
+    local nl = string.char(10)
+    local EK = "|cff9999ffEK:|r "
+    local KL = "|cffff9999KL:|r "
+
+    FVZonesFrame.zoneList:SetText(
+        EK .. "|cffffd100The Hinterlands|r (" .. FVLvlC(40,pl) .. "40|r-" .. FVLvlC(50,pl) .. "50|r)" .. nl ..
+        EK .. "|cffffd100Western Plaguelands|r (" .. FVLvlC(51,pl) .. "51|r-" .. FVLvlC(58,pl) .. "58|r)" .. nl ..
+        KL .. "|cffffd100Feralas|r (" .. FVLvlC(40,pl) .. "40|r-" .. FVLvlC(50,pl) .. "50|r)" .. nl ..
+        KL .. "|cffffd100Tanaris|r (" .. FVLvlC(40,pl) .. "40|r-" .. FVLvlC(50,pl) .. "50|r)" .. nl ..
+        KL .. "|cffffd100Azshara|r (" .. FVLvlC(45,pl) .. "45|r-" .. FVLvlC(55,pl) .. "55|r)" .. nl ..
+        KL .. "|cffffd100Maraudon|r (" .. FVLvlC(46,pl) .. "46|r-" .. FVLvlC(55,pl) .. "55|r)" .. nl ..
+        KL .. "|cffffd100Felwood|r (" .. FVLvlC(48,pl) .. "48|r-" .. FVLvlC(55,pl) .. "55|r)" .. nl ..
+        KL .. "|cffffd100Moonglade|r (" .. FVLvlC(55,pl) .. "55|r-" .. FVLvlC(60,pl) .. "60|r)"
+    )
+
+    FVStyleBtn(FVZonesFrame.btn1, false)
+    FVStyleBtn(FVZonesFrame.btn2, false)
+    FVStyleBtn(FVZonesFrame.btn3, false)
+    FVStyleBtn(FVZonesFrame.btn4, false)
+    FVStyleBtn(FVZonesFrame.btn5, true)
+    FVStyleBtn(FVZonesFrame.btn6, false)
+
+    FVSetBtnColor(FVZonesFrame.btn1, 25, 1, false)
+    FVSetBtnColor(FVZonesFrame.btn2, 75, 1, false)
+    FVSetBtnColor(FVZonesFrame.btn3, 150, 55, false)
+    FVSetBtnColor(FVZonesFrame.btn4, 225, 130, false)
+    FVSetBtnColor(FVZonesFrame.btn5, 300, 205, true)
+    FVSetBtnColor(FVZonesFrame.btn6, 375, 280, false)
+end
+
+local function FVShowBracket6()
+    local pl = UnitLevel("player")
+    local nl = string.char(10)
+    local EK = "|cff9999ffEK:|r "
+    local KL = "|cffff9999KL:|r "
+
+    FVZonesFrame.zoneList:SetText(
+        EK .. "|cffffd100Blasted Lands|r (" .. FVLvlC(45,pl) .. "45|r-" .. FVLvlC(55,pl) .. "55|r)" .. nl ..
+        EK .. "|cffffd100Burning Steppes|r (" .. FVLvlC(50,pl) .. "50|r-" .. FVLvlC(58,pl) .. "58|r)" .. nl ..
+        EK .. "|cffffd100Deadwind Pass|r (" .. FVLvlC(55,pl) .. "55|r-" .. FVLvlC(60,pl) .. "60|r)" .. nl ..
+        EK .. "|cffffd100Eastern Plaguelands|r (" .. FVLvlC(53,pl) .. "53|r-" .. FVLvlC(60,pl) .. "60|r)" .. nl ..
+        EK .. "|cffffd100Searing Gorge|r (" .. FVLvlC(43,pl) .. "43|r-" .. FVLvlC(50,pl) .. "50|r)" .. nl ..
+        KL .. "|cffffd100Silithus|r (" .. FVLvlC(55,pl) .. "55|r-" .. FVLvlC(60,pl) .. "60|r)" .. nl ..
+        KL .. "|cffffd100Winterspring|r (" .. FVLvlC(53,pl) .. "53|r-" .. FVLvlC(60,pl) .. "60|r)"
+    )
+
+    FVStyleBtn(FVZonesFrame.btn1, false)
+    FVStyleBtn(FVZonesFrame.btn2, false)
+    FVStyleBtn(FVZonesFrame.btn3, false)
+    FVStyleBtn(FVZonesFrame.btn4, false)
+    FVStyleBtn(FVZonesFrame.btn5, false)
+    FVStyleBtn(FVZonesFrame.btn6, true)
+
+    FVSetBtnColor(FVZonesFrame.btn1, 25, 1, false)
+    FVSetBtnColor(FVZonesFrame.btn2, 75, 1, false)
+    FVSetBtnColor(FVZonesFrame.btn3, 150, 55, false)
+    FVSetBtnColor(FVZonesFrame.btn4, 225, 130, false)
+    FVSetBtnColor(FVZonesFrame.btn5, 300, 205, false)
+    FVSetBtnColor(FVZonesFrame.btn6, 375, 280, true)
+end
+
+function FishingVolume_ToggleZonesFrame()
+    if not FVZonesFrame then
+        FVZonesFrame = CreateFrame("Frame", "FVZonesFrameWnd", UIParent)
+        FVZonesFrame:SetWidth(260)
+        FVZonesFrame:SetHeight(340)
+        FVZonesFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+        FVZonesFrame:SetMovable(true)
+        FVZonesFrame:EnableMouse(true)
+        FVZonesFrame:SetClampedToScreen(true)
+        FVZonesFrame:RegisterForDrag("LeftButton")
+        FVZonesFrame:SetScript("OnDragStart", function() this:StartMoving() end)
+        FVZonesFrame:SetScript("OnDragStop",  function() this:StopMovingOrSizing() end)
+        FVZonesFrame:SetBackdrop({
+            bgFile   = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = "Interface\\Buttons\\WHITE8x8",
+            tile = false, tileSize = 0, edgeSize = 1,
+            insets = { left = 0, right = 0, top = 0, bottom = 0 }
+        })
+        FVZonesFrame:SetBackdropColor(0, 0, 0, 0.92)
+        FVZonesFrame:SetBackdropBorderColor(0.2, 0.2, 0.2, 1)
+        FVZonesFrame:Hide()
+        tinsert(UISpecialFrames, "FVZonesFrameWnd")
+
+        local title = FVZonesFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        title:SetPoint("TOP", FVZonesFrame, "TOP", 0, -10)
+        title:SetText("Fishing Zones")
+        title:SetTextColor(1.0, 0.82, 0)
+
+        local closeBtn = CreateFrame("Button", nil, FVZonesFrame)
+        closeBtn:SetWidth(14) closeBtn:SetHeight(14)
+        closeBtn:SetPoint("TOPRIGHT", FVZonesFrame, "TOPRIGHT", -4, -4)
+        closeBtn:SetBackdrop({
+            bgFile   = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = "Interface\\Buttons\\WHITE8x8",
+            tile = false, tileSize = 0, edgeSize = 1,
+            insets = { left = 0, right = 0, top = 0, bottom = 0 }
+        })
+        closeBtn:SetBackdropColor(0, 0, 0, 1)
+        closeBtn:SetBackdropBorderColor(0.2, 0.2, 0.2, 1)
+        local xStr = closeBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        xStr:SetAllPoints(closeBtn)
+        xStr:SetJustifyH("CENTER") xStr:SetJustifyV("MIDDLE")
+        xStr:SetText("X") xStr:SetTextColor(0.7, 0.2, 0.2)
+        closeBtn:SetScript("OnClick", function() FVZonesFrame:Hide() end)
+        closeBtn:SetScript("OnEnter", function() this:SetBackdropBorderColor(1, 0.2, 0.2, 1) end)
+        closeBtn:SetScript("OnLeave", function() this:SetBackdropBorderColor(0.2, 0.2, 0.2, 1) end)
+
+        local skillText = FVZonesFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        skillText:SetPoint("TOP", FVZonesFrame, "TOP", 0, -22)
+        FVZonesFrame.skillText = skillText
+
+        local topDiv = FVZonesFrame:CreateTexture(nil, "ARTWORK")
+        topDiv:SetHeight(1)
+        topDiv:SetPoint("TOPLEFT",  FVZonesFrame, "TOPLEFT",  10, -34)
+        topDiv:SetPoint("TOPRIGHT", FVZonesFrame, "TOPRIGHT", -10, -34)
+        topDiv:SetTexture(0.3, 0.3, 0.3, 1)
+
+        local btn1 = CreateFrame("Button", nil, FVZonesFrame, "UIPanelButtonTemplate")
+        btn1:SetWidth(240) btn1:SetHeight(20)
+        btn1:SetPoint("TOPLEFT", FVZonesFrame, "TOPLEFT", 10, -38)
+        btn1:SetText(FVBracketLabel(1, 25))
+        FVStyleBtn(btn1, false)
+        btn1:SetScript("OnClick", function() FVShowBracket1() end)
+
+        local btn2 = CreateFrame("Button", nil, FVZonesFrame, "UIPanelButtonTemplate")
+        btn2:SetWidth(240) btn2:SetHeight(20)
+        btn2:SetPoint("TOPLEFT", FVZonesFrame, "TOPLEFT", 10, -58)
+        btn2:SetText(FVBracketLabel(1, 75))
+        FVStyleBtn(btn2, false)
+        btn2:SetScript("OnClick", function() FVShowBracket2() end)
+
+        local btn3 = CreateFrame("Button", nil, FVZonesFrame, "UIPanelButtonTemplate")
+        btn3:SetWidth(240) btn3:SetHeight(20)
+        btn3:SetPoint("TOPLEFT", FVZonesFrame, "TOPLEFT", 10, -78)
+        btn3:SetText(FVBracketLabel(55, 150))
+        FVStyleBtn(btn3, false)
+        btn3:SetScript("OnClick", function() FVShowBracket3() end)
+
+        local btn4 = CreateFrame("Button", nil, FVZonesFrame, "UIPanelButtonTemplate")
+        btn4:SetWidth(240) btn4:SetHeight(20)
+        btn4:SetPoint("TOPLEFT", FVZonesFrame, "TOPLEFT", 10, -98)
+        btn4:SetText(FVBracketLabel(130, 225))
+        FVStyleBtn(btn4, false)
+        btn4:SetScript("OnClick", function() FVShowBracket4() end)
+
+        local btn5 = CreateFrame("Button", nil, FVZonesFrame, "UIPanelButtonTemplate")
+        btn5:SetWidth(240) btn5:SetHeight(20)
+        btn5:SetPoint("TOPLEFT", FVZonesFrame, "TOPLEFT", 10, -118)
+        btn5:SetText(FVBracketLabel(205, 300))
+        FVStyleBtn(btn5, false)
+        btn5:SetScript("OnClick", function() FVShowBracket5() end)
+
+        local btn6 = CreateFrame("Button", nil, FVZonesFrame, "UIPanelButtonTemplate")
+        btn6:SetWidth(240) btn6:SetHeight(20)
+        btn6:SetPoint("TOPLEFT", FVZonesFrame, "TOPLEFT", 10, -138)
+        btn6:SetText(FVBracketLabel(280, 375))
+        FVStyleBtn(btn6, false)
+        btn6:SetScript("OnClick", function() FVShowBracket6() end)
+
+        local div = FVZonesFrame:CreateTexture(nil, "ARTWORK")
+        div:SetHeight(1)
+        div:SetPoint("TOPLEFT",  FVZonesFrame, "TOPLEFT",  10, -162)
+        div:SetPoint("TOPRIGHT", FVZonesFrame, "TOPRIGHT", -10, -162)
+        div:SetTexture(0.3, 0.3, 0.3, 1)
+
+        local zoneList = FVZonesFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        zoneList:SetPoint("TOPLEFT",     FVZonesFrame, "TOPLEFT",  10, -172)
+        zoneList:SetPoint("BOTTOMRIGHT", FVZonesFrame, "BOTTOMRIGHT", -10, 10)
+        zoneList:SetJustifyH("LEFT")
+        zoneList:SetJustifyV("TOP")
+        zoneList:SetNonSpaceWrap(true)
+        FVZonesFrame.zoneList = zoneList
+
+        FVZonesFrame.btn1 = btn1
+        FVZonesFrame.btn2 = btn2
+        FVZonesFrame.btn3 = btn3
+        FVZonesFrame.btn4 = btn4
+        FVZonesFrame.btn5 = btn5
+        FVZonesFrame.btn6 = btn6
+    end
+
+    if FVZonesFrame:IsVisible() then
+        FVZonesFrame:Hide()
+    else
+        FVZonesFrame:ClearAllPoints()
+        FVZonesFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+        FVUpdateSkill()
+        FVShowBracket1()
+        FVZonesFrame:Show()
+    end
 end
