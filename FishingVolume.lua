@@ -41,7 +41,8 @@ end
 
 local function GetItemName(link)
     if not link then return nil end
-    return string.match(link, "%[(.-)%]")
+    local _, _, name = string.find(link, "%[(.-)%]")
+    return name
 end
 
 FishingVolume.GetSetting  = GetSetting
@@ -120,7 +121,7 @@ function FishingVolume:EquipPole()
             local name = GetItemName(GetContainerItemLink(bag, slot))
             if name and string.find(name, "Pole") then
                 UseContainerItem(bag, slot)
-                DEFAULT_CHAT_FRAME:AddMessage("|cff33cc99FishingVolume:|r Equipped: " .. name)
+                DEFAULT_CHAT_FRAME:AddMessage("|cff33cc99FishingVolume:|r Equipped: " .. name .. ".")
                 return
             end
         end
@@ -160,7 +161,7 @@ function FishingVolume:EquipWeapons()
     if FV_RecastOverlay then FV_RecastOverlay:Hide() end
     lastFishActivity = 0 
     
-    DEFAULT_CHAT_FRAME:AddMessage("|cff33cc99FishingVolume:|r Weapons restored.")
+    DEFAULT_CHAT_FRAME:AddMessage("|cff33cc99FishingVolume:|r Equipped: Weapon.")
     StartSwapWait()
 end
 
@@ -359,6 +360,9 @@ SlashCmdList["FV"] = function(msg)
 
     if cmd == "mini" then
         if FishingVolume_ToggleMiniPanel then FishingVolume_ToggleMiniPanel() end
+        return
+    elseif cmd == "zones" then
+        if FishingVolume_ToggleZonesFrame then FishingVolume_ToggleZonesFrame() end
         return
     elseif cmd == "reset" then
         if resetPending and (GetTime() - resetTimer) < 10 then
