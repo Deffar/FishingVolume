@@ -1,7 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
     <Frame name="FishingVolumeFrame" parent="UIParent" frameStrata="DIALOG" hidden="true" movable="true" enableMouse="true" clampedToScreen="true">
         <Size>
-            <AbsDimension x="300" y="405"/>
+            <AbsDimension x="300" y="484"/>
         </Size>
         <Anchors>
             <Anchor point="CENTER" relativeTo="UIParent" relativePoint="CENTER">
