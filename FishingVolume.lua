@@ -241,6 +241,7 @@ f:RegisterEvent("LOOT_OPENED")
 f:RegisterEvent("LOOT_CLOSED")
 f:RegisterEvent("VARIABLES_LOADED")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")
+f:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 f:RegisterEvent("CHAT_MSG_LOOT")
 
 f:SetScript("OnEvent", function()
@@ -250,6 +251,10 @@ f:SetScript("OnEvent", function()
             FishingVolumeDB.soundVolume = tonumber(GetCVar("SoundVolume")) or 0
         end
         FishingVolume.sessionFish, FishingVolume.sessionChests = 0, 0
+        if FishingVolume.RefreshZoneSkill then FishingVolume.RefreshZoneSkill() end
+
+    elseif event == "ZONE_CHANGED_NEW_AREA" then
+        if FishingVolume.RefreshZoneSkill then FishingVolume.RefreshZoneSkill() end
 
     elseif event == "SPELLCAST_CHANNEL_START" then
         if arg1 == CHANNEL_NAME or arg2 == CHANNEL_NAME then
@@ -311,9 +316,11 @@ f:SetScript("OnEvent", function()
     if isFish then
         FishingVolume.sessionFish = FishingVolume.sessionFish + 1
         SetSetting("totalFish", GetSetting("totalFish") + 1)
+        if FishingVolume.RefreshZoneSkill then FishingVolume.RefreshZoneSkill() end
     elseif string.find(arg1, "Trunk") or string.find(arg1, "Locked Chest") then
         FishingVolume.sessionChests = FishingVolume.sessionChests + 1
         SetSetting("totalChests", GetSetting("totalChests") + 1)
+        if FishingVolume.RefreshZoneSkill then FishingVolume.RefreshZoneSkill() end
     end
 end
 end)
