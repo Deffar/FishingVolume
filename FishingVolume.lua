@@ -62,6 +62,21 @@ end
 -- UTILITY — LURES & GEAR
 -- ================================================================
 
+-- Persistent wait frame for intentionalSwap reset — reused, never recreated
+local swapWaitFrame = CreateFrame("Frame")
+swapWaitFrame:SetScript("OnUpdate", nil)
+
+local function StartSwapWait()
+    local t = 0
+    swapWaitFrame:SetScript("OnUpdate", function()
+        t = t + arg1
+        if t > 1.5 then
+            FishingVolume.intentionalSwap = false
+            swapWaitFrame:SetScript("OnUpdate", nil)
+        end
+    end)
+end
+
 local LURE_PRIORITY = {
     "Aquadynamic Fish Attractor",
     "Aquadynamic Fish Lens",
@@ -74,7 +89,8 @@ local LURE_PRIORITY = {
 function FishingVolume:ApplyBestLure()
     for _, lureName in ipairs(LURE_PRIORITY) do
         for bag = 0, 4 do
-            for slot = 1, GetContainerNumSlots(bag) do
+            local slots = GetContainerNumSlots(bag)
+            for slot = 1, slots do
                 local name = GetItemName(GetContainerItemLink(bag, slot))
                 if name and name == lureName then
                     UseContainerItem(bag, slot)
@@ -99,7 +115,8 @@ function FishingVolume:EquipPole()
     end
 
     for bag = 0, 4 do
-        for slot = 1, GetContainerNumSlots(bag) do
+        local slots = GetContainerNumSlots(bag)
+        for slot = 1, slots do
             local name = GetItemName(GetContainerItemLink(bag, slot))
             if name and string.find(name, "Pole") then
                 UseContainerItem(bag, slot)
@@ -127,7 +144,8 @@ function FishingVolume:EquipWeapons()
         local targetName = GetItemName(link)
         if not targetName then return end
         for bag = 0, 4 do
-            for slot = 1, GetContainerNumSlots(bag) do
+            local slots = GetContainerNumSlots(bag)
+            for slot = 1, slots do
                 if GetItemName(GetContainerItemLink(bag, slot)) == targetName then
                     UseContainerItem(bag, slot)
                     return
@@ -143,22 +161,11 @@ function FishingVolume:EquipWeapons()
     lastFishActivity = 0 
     
     DEFAULT_CHAT_FRAME:AddMessage("|cff33cc99FishingVolume:|r Weapons restored.")
-    
-    -- Reset flag after delay to ensure gear events are finished
-    local t = 0
-    local f_wait = CreateFrame("Frame")
-    f_wait:SetScript("OnUpdate", function()
-        t = t + arg1
-        if t > 1.5 then
-            FishingVolume.intentionalSwap = false
-            f_wait:SetScript("OnUpdate", nil)
-        end
-    end)
+    StartSwapWait()
 end
 
 function FishingVolume:CastFishing()
     CastSpellByName("Fishing")
-    if FishingVolumeFrame then UpdateUtilityButtons(FishingVolumeFrame) end
 end
 
 -- ================================================================
@@ -168,7 +175,7 @@ end
 local recastOverlay = CreateFrame("Button", "FV_RecastOverlay", UIParent)
 recastOverlay:SetWidth(900)
 recastOverlay:SetHeight(400)
-recastOverlay:SetPoint("CENTER", 0, 100) 
+recastOverlay:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
 recastOverlay:Hide()
 
 -- Register for both Left and Right clicks
@@ -206,12 +213,16 @@ local function TriggerRecast()
     end
 end
 
-local function UpdateOverlayVisibility()
+local overlayCheckElapsed = 0
+local function UpdateOverlayVisibility(dt)
     if not recastOverlay:IsVisible() then return end
+    overlayCheckElapsed = overlayCheckElapsed + dt
+    if overlayCheckElapsed < 0.5 then return end
+    overlayCheckElapsed = 0
+
     local mhLink = GetInventoryItemLink("player", 16)
-    local hasPole = mhLink and string.find(GetItemName(mhLink) or "", "Pole")
-    
-    -- Added safety: if we are in combat, hide the overlay
+    local mhName = GetItemName(mhLink)
+    local hasPole = mhName and string.find(mhName, "Pole")
     if not hasPole or (GetTime() - lastFishActivity > 10) or UnitAffectingCombat("player") then
         recastOverlay:Hide()
     end
@@ -291,20 +302,23 @@ f:SetScript("OnEvent", function()
 end)
 
 f:SetScript("OnUpdate", function()
-    UpdateOverlayVisibility()
+    UpdateOverlayVisibility(arg1)
 
     -- Timer-based volume restore (for delay-only mode)
-    if isFishingVolume and lastCastTime and not GetSetting("muteOnStop") then
-        if (GetTime() - lastCastTime) >= GetSetting("muteDelay") then
-            RestoreVolume()
+    if isFishingVolume and lastCastTime then
+        if not GetSetting("muteOnStop") then
+            if (GetTime() - lastCastTime) >= GetSetting("muteDelay") then
+                RestoreVolume()
+            end
         end
     end
 
-    -- Poller for LootFrame (State transition check)
-    local lootOpen = LootFrame and LootFrame:IsVisible()
-    if not lootOpen and pendingRecast and not FishingVolume.intentionalSwap then
-        pendingRecast = false
-        TriggerRecast()
+    -- Poller for LootFrame close (only runs when a recast is pending)
+    if pendingRecast and not FishingVolume.intentionalSwap then
+        if not (LootFrame and LootFrame:IsVisible()) then
+            pendingRecast = false
+            TriggerRecast()
+        end
     end
 end)
 
