@@ -18,7 +18,7 @@
 
         <Layers>
             <Layer level="ARTWORK">
-                <FontString name="FishingVolumeTitleText" inherits="GameFontNormal" text="Fishing Volume 1.0">
+                <FontString name="FishingVolumeTitleText" inherits="GameFontNormal" text="Fishing Volume 2.1">
                     <Anchors>
                         <Anchor point="TOP" relativeTo="FishingVolumeFrame" relativePoint="TOP">
                             <Offset><AbsDimension x="0" y="-14"/></Offset>
