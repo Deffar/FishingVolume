@@ -49,6 +49,104 @@ local function GetChestPercent(fish, chests)
     return string.format("%.1f%%", (chests / total) * 100)
 end
 
+-- ================================================================
+-- ZONE FISHING SKILL
+-- ================================================================
+
+-- Zone fishing data sourced from El's Extreme Angling (Vanilla 1.12.1)
+-- min  = minimum skill to catch anything at all
+-- full = skill required for 100% catch rate (no get-aways)
+local ZONE_SKILL = {
+    -- Tier 1a: min 1, 100% at 25
+    ["Dun Morogh"]                = { min = 1,   full = 25  },
+    ["Durotar"]                   = { min = 1,   full = 25  },
+    ["Elwynn Forest"]             = { min = 1,   full = 25  },
+    ["Mulgore"]                   = { min = 1,   full = 25  },
+    ["Teldrassil"]                = { min = 1,   full = 25  },
+    ["Tirisfal Glades"]           = { min = 1,   full = 25  },
+    -- Tier 1b: min 1, 100% at 75
+    ["The Barrens"]               = { min = 1,   full = 75  },
+    ["Blackfathom Deeps"]         = { min = 1,   full = 75  },
+    ["Darkshore"]                 = { min = 1,   full = 75  },
+    ["Darnassus"]                 = { min = 1,   full = 75  },
+    ["The Deadmines"]             = { min = 1,   full = 75  },
+    ["Ironforge"]                 = { min = 1,   full = 75  },
+    ["Loch Modan"]                = { min = 1,   full = 75  },
+    ["Orgrimmar"]                 = { min = 1,   full = 75  },
+    ["Silverpine Forest"]         = { min = 1,   full = 75  },
+    ["Stormwind City"]            = { min = 1,   full = 75  },
+    ["Thunder Bluff"]             = { min = 1,   full = 75  },
+    ["Undercity"]                 = { min = 1,   full = 75  },
+    ["The Wailing Caverns"]       = { min = 1,   full = 75  },
+    ["Westfall"]                  = { min = 1,   full = 75  },
+    -- Tier 2: min 55, 100% at 150
+    ["Ashenvale"]                 = { min = 55,  full = 150 },
+    ["Duskwood"]                  = { min = 55,  full = 150 },
+    ["Hillsbrad Foothills"]       = { min = 55,  full = 150 },
+    ["Redridge Mountains"]        = { min = 55,  full = 150 },
+    ["Stonetalon Mountains"]      = { min = 55,  full = 150 },
+    ["Wetlands"]                  = { min = 55,  full = 150 },
+    -- Tier 3: min 130, 100% at 225
+    ["Alterac Mountains"]         = { min = 130, full = 225 },
+    ["Arathi Highlands"]          = { min = 130, full = 225 },
+    ["Desolace"]                  = { min = 130, full = 225 },
+    ["Dustwallow Marsh"]          = { min = 130, full = 225 },
+    ["Scarlet Monastery"]         = { min = 130, full = 225 },
+    ["Stranglethorn Vale"]        = { min = 130, full = 225 },
+    ["Swamp of Sorrows"]          = { min = 130, full = 225 },
+    ["Thousand Needles"]          = { min = 130, full = 225 },
+    -- Tier 4: min 205, 100% at 300
+    ["Azshara"]                   = { min = 205, full = 300 },
+    ["Felwood"]                   = { min = 205, full = 300 },
+    ["Feralas"]                   = { min = 205, full = 300 },
+    ["The Hinterlands"]           = { min = 205, full = 300 },
+    ["Maraudon"]                  = { min = 205, full = 300 },
+    ["Moonglade"]                 = { min = 205, full = 300 },
+    ["Tanaris"]                   = { min = 205, full = 300 },
+    ["The Temple of Atal'Hakkar"] = { min = 205, full = 300 },
+    ["Un'Goro Crater"]            = { min = 205, full = 300 },
+    ["Western Plaguelands"]       = { min = 205, full = 300 },
+    -- Tier 5: min 280, 100% at 375
+    ["Burning Steppes"]           = { min = 280, full = 375 },
+    ["Blasted Lands"]             = { min = 280, full = 375 },
+    ["Deadwind Pass"]             = { min = 280, full = 375 },
+    ["Eastern Plaguelands"]       = { min = 280, full = 375 },
+    ["Searing Gorge"]             = { min = 280, full = 375 },
+    ["Silithus"]                  = { min = 280, full = 375 },
+    ["Winterspring"]              = { min = 280, full = 375 },
+}
+
+-- Cached — refreshed on login, zone change, or after each catch
+local zoneCache = { zone = nil, data = nil, skill = nil }
+
+local function GetPlayerFishingSkill()
+    for i = 1, GetNumSkillLines() do
+        local name, _, _, rank, _, modifier = GetSkillLineInfo(i)
+        if name == "Fishing" then
+            return (tonumber(rank) or 0) + (tonumber(modifier) or 0)
+        end
+    end
+    return 0
+end
+
+function FishingVolume.RefreshZoneSkill()
+    local zone = GetZoneText()
+    zoneCache.zone  = (zone and zone ~= "") and zone or nil
+    zoneCache.data  = zoneCache.zone and ZONE_SKILL[zoneCache.zone]
+    zoneCache.skill = GetPlayerFishingSkill()
+end
+
+-- Returns r,g,b colour for the 100% catch rate number based on player skill.
+-- Green  = at or above full, Orange = below full but above min, Red = below min, Gray = unknown
+local function ZoneSkillColor()
+    local data, skill = zoneCache.data, zoneCache.skill
+    if not data or not skill then return 0.67, 0.67, 0.67 end
+    if skill >= data.full then return 0.0,  0.8, 0.0  end  -- green:  100% catch rate
+    if skill >= data.min  then return 1.0,  0.6, 0.0  end  -- orange: catching but get-aways
+    return 1.0, 0.2, 0.2                                    -- red:    can't catch anything
+end
+
+-- ================================================================
 -- Updates the visual state of the Delay Slider based on the checkbox.
 local function UpdateDelaySliderState(frame)
     if not frame.delaySlider or not frame.muteOnStopCheck then return end
@@ -175,20 +273,97 @@ function UpdateUtilityButtons(frame)
             frame._lastLureCount = lureCount
             frame.lureInvText:SetText("Lures in inventory: " .. lureCount)
         end
+        -- Zone skill display (data refreshed externally; just render cache here)
+        if frame.zoneNameText and frame.zoneReqText then
+            local GOLD  = "|cffffd100"
+            local WHITE = "|cffffffff"
+            local RESET = "|r"
+
+            local zoneName = zoneCache.zone or "Unknown"
+            local data     = zoneCache.data
+            local skill    = zoneCache.skill or 0
+
+            local fullStr = data and tostring(data.full) or "?"
+            local nr, ng, nb = ZoneSkillColor()
+            local numHex = string.format("%02x%02x%02x",
+                math.floor(nr * 255), math.floor(ng * 255), math.floor(nb * 255))
+            local numColor = "|cff" .. numHex
+
+            -- Fish% via El's Angling: (skill / full)^2, capped at 100%
+            -- Cast success%: (skill - min) / (full - min), capped at 100%
+            local successPct, junkPct
+            if not data then
+                successPct, junkPct = nil, nil
+            elseif skill >= data.full then
+                successPct, junkPct = 100, 0
+            elseif skill < data.min then
+                successPct, junkPct = 0, 100
+            else
+                local ratio = skill / data.full
+                local fishPct = math.floor(ratio * ratio * 100 + 0.5)
+                junkPct    = 100 - fishPct
+                local sRatio = (skill - data.min) / (data.full - data.min)
+                successPct = math.floor(sRatio * 100 + 0.5)
+            end
+
+            local cacheKey = zoneName .. fullStr .. tostring(skill)
+            if frame._lastZoneKey ~= cacheKey then
+                frame._lastZoneKey = cacheKey
+
+                frame.zoneNameText:SetText(
+                    GOLD .. "Zone: " .. RESET .. WHITE .. zoneName .. RESET)
+
+                frame.zoneReqText:SetText(
+                    GOLD .. "Skill requirement: " .. RESET ..
+                    numColor .. fullStr .. RESET ..
+                    WHITE .. " (" .. skill .. ")" .. RESET)
+
+                if successPct ~= nil then
+                    frame.zoneSuccessText:SetText(
+                        GOLD .. "Success chance: " .. RESET ..
+                        WHITE .. successPct .. "%" .. RESET)
+                    frame.zoneFishText:SetText(
+                        GOLD .. "Junk chance: " .. RESET ..
+                        WHITE .. junkPct .. "%" .. RESET)
+                else
+                    frame.zoneSuccessText:SetText(GOLD .. "Success chance: " .. RESET .. WHITE .. "?" .. RESET)
+                    frame.zoneFishText:SetText(GOLD .. "Junk chance: " .. RESET .. WHITE .. "?" .. RESET)
+                end
+            end
+        end
     end
 
     if frame.statSessionText then
+        local GOLD  = "|cffffd100"
+        local WHITE = "|cffffffff"
+        local RESET = "|r"
+
         local sFish   = FishingVolume.sessionFish or 0
         local sChests = FishingVolume.sessionChests or 0
         local tFish   = FishingVolume.GetSetting("totalFish") or 0
         local tChests = FishingVolume.GetSetting("totalChests") or 0
+
         if frame._lastSFish ~= sFish or frame._lastSChests ~= sChests then
             frame._lastSFish, frame._lastSChests = sFish, sChests
-            frame.statSessionText:SetText(string.format("Session: %d Fish | %d Chests (%s)", sFish, sChests, GetChestPercent(sFish, sChests)))
+            frame.statSessionText:SetText(
+                GOLD .. "Session: " .. RESET ..
+                WHITE .. sFish .. RESET ..
+                GOLD .. " Fish | " .. RESET ..
+                WHITE .. sChests .. RESET ..
+                GOLD .. " Chests (" .. RESET ..
+                WHITE .. GetChestPercent(sFish, sChests) .. RESET ..
+                GOLD .. ")" .. RESET)
         end
         if frame._lastTFish ~= tFish or frame._lastTChests ~= tChests then
             frame._lastTFish, frame._lastTChests = tFish, tChests
-            frame.statTotalText:SetText(string.format("Lifetime: %d Fish | %d Chests (%s)", tFish, tChests, GetChestPercent(tFish, tChests)))
+            frame.statTotalText:SetText(
+                GOLD .. "Lifetime: " .. RESET ..
+                WHITE .. tFish .. RESET ..
+                GOLD .. " Fish | " .. RESET ..
+                WHITE .. tChests .. RESET ..
+                GOLD .. " Chests (" .. RESET ..
+                WHITE .. GetChestPercent(tFish, tChests) .. RESET ..
+                GOLD .. ")" .. RESET)
         end
     end
 
@@ -454,22 +629,39 @@ function FishingVolume_OnLoad(frame)
     frame.lureInvText:SetPoint("TOPLEFT", frame.lureTimeText, "BOTTOMLEFT", 0, -4)
     frame.lureInvText:SetTextColor(1, 1, 1)
 
+    local lureDivider = frame:CreateTexture(nil, "ARTWORK")
+    lureDivider:SetHeight(1)
+    lureDivider:SetPoint("TOPLEFT", frame.lureInvText, "BOTTOMLEFT", 0, -7)
+    lureDivider:SetPoint("RIGHT", frame, "RIGHT", -PAD, 0)
+    lureDivider:SetTexture(0.3, 0.3, 0.3, 1)
+
+    frame.zoneNameText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.zoneNameText:SetPoint("TOPLEFT", frame.lureInvText, "BOTTOMLEFT", 0, -18)
+
+    frame.zoneReqText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.zoneReqText:SetPoint("TOPLEFT", frame.zoneNameText, "BOTTOMLEFT", 0, -2)
+
+    frame.zoneSuccessText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.zoneSuccessText:SetPoint("TOPLEFT", frame.zoneReqText, "BOTTOMLEFT", 0, -2)
+
+    frame.zoneFishText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.zoneFishText:SetPoint("TOPLEFT", frame.zoneSuccessText, "BOTTOMLEFT", 0, -2)
+
     local divider = frame:CreateTexture(nil, "ARTWORK")
     divider:SetHeight(1)
-    divider:SetPoint("TOPLEFT",  frame.lureInvText, "BOTTOMLEFT", 0, -7)
+    divider:SetPoint("TOPLEFT",  frame.zoneFishText, "BOTTOMLEFT", 0, -7)
     divider:SetPoint("RIGHT", frame, "RIGHT", -PAD, 0)
     divider:SetTexture(0.3, 0.3, 0.3, 1)
 
     frame.statSessionText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.statSessionText:SetPoint("TOPLEFT", frame.lureInvText, "BOTTOMLEFT", 0, -18)
-    frame.statSessionText:SetTextColor(1.0, 0.82, 0)
+    frame.statSessionText:SetPoint("TOPLEFT", frame.zoneFishText, "BOTTOMLEFT", 0, -18)
 
     frame.statTotalText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     frame.statTotalText:SetPoint("TOPLEFT", frame.statSessionText, "BOTTOMLEFT", 0, -4)
-    frame.statTotalText:SetTextColor(1.0, 0.82, 0)
 
     frame:SetScript("OnEvent", function()
         if event == "UNIT_INVENTORY_CHANGED" and arg1 == "player" then
+            if FishingVolume.RefreshZoneSkill then FishingVolume.RefreshZoneSkill() end
             UpdateUtilityButtons(frame)
         end
     end)
