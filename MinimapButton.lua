@@ -154,23 +154,32 @@ loader:SetScript("OnEvent", function()
     btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
     btn:SetScript("OnClick", function()
-        if arg1 == "RightButton" then
-            -- Right click: toggle mini panel
-            FishingVolume_ToggleMiniPanel()
-        elseif IsShiftKeyDown() then
-            confirmFrame:ClearAllPoints()
-            confirmFrame:SetPoint("BOTTOM", btn, "TOP", 0, 4)
-            if confirmFrame:IsVisible() then
+        if arg1 == "LeftButton" then
+            if IsShiftKeyDown() then
+                -- Shift + Left: toggle mini panel
+                FishingVolume_ToggleMiniPanel()
+            else
+                -- Left: toggle main settings panel
                 confirmFrame:Hide()
-            else
-                confirmFrame:Show()
+                if FishingVolumeFrame:IsVisible() then
+                    FishingVolumeFrame:Hide()
+                else
+                    FishingVolumeFrame:Show()
+                end
             end
-        else
-            confirmFrame:Hide()
-            if FishingVolumeFrame:IsVisible() then
-                FishingVolumeFrame:Hide()
+        elseif arg1 == "RightButton" then
+            if IsShiftKeyDown() then
+                -- Shift + Right: reset stats confirm
+                confirmFrame:ClearAllPoints()
+                confirmFrame:SetPoint("BOTTOM", btn, "TOP", 0, 4)
+                if confirmFrame:IsVisible() then
+                    confirmFrame:Hide()
+                else
+                    confirmFrame:Show()
+                end
             else
-                FishingVolumeFrame:Show()
+                -- Right: toggle zones browser
+                if FishingVolume_ToggleZonesFrame then FishingVolume_ToggleZonesFrame() end
             end
         end
     end)
@@ -180,8 +189,9 @@ loader:SetScript("OnEvent", function()
         GameTooltip:SetOwner(this, "ANCHOR_LEFT")
         GameTooltip:SetText("FishingVolume", 1, 0.82, 0)
         GameTooltip:AddLine("Left click: Open settings", 1, 1, 1)
-        GameTooltip:AddLine("Right click: Mini panel", 1, 1, 1)
-        GameTooltip:AddLine("Shift + Left click: Reset stats", 1, 1, 1)
+        GameTooltip:AddLine("Shift + Left click: Mini panel", 1, 1, 1)
+        GameTooltip:AddLine("Right click: Zones browser", 1, 1, 1)
+        GameTooltip:AddLine("Shift + Right click: Reset stats", 1, 1, 1)
         GameTooltip:Show()
     end)
     btn:SetScript("OnLeave", function()
