@@ -21,8 +21,6 @@ Installation
 
 <img width="304" height="174" alt="image" src="https://github.com/user-attachments/assets/5e6ce63f-1629-4907-bf2c-3b6a258608df" />
 
-<img width="1808" height="755" alt="image" src="https://github.com/user-attachments/assets/e14e3683-997f-41de-be3d-6e1efd8d89b4" />
-
 Features
 Volume Control
 
