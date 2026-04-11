@@ -15,7 +15,8 @@ Installation
 <br>
 <img width="517" height="834" alt="image" src="https://github.com/user-attachments/assets/1d90b4de-b7cf-4b1c-b45c-5a4db36e4a2f" />
 <br>
-
+<img width="447" height="582" alt="image" src="https://github.com/user-attachments/assets/b10606d5-5de4-4a26-b0f0-8147fdc9579b" />
+<br>
 <img width="308" height="173" alt="image" src="https://github.com/user-attachments/assets/f2fd7aea-78eb-4854-8133-2ceed9dc02c1" />
 
 <img width="304" height="174" alt="image" src="https://github.com/user-attachments/assets/5e6ce63f-1629-4907-bf2c-3b6a258608df" />
