@@ -1,62 +1,61 @@
-FishingVolume (1.12.1)
+# FishingVolume (WoW 1.12.1)
 
-FishingVolume is a utility for 1.12.1 designed to automatically handle your volume levels and adds a few quality-of-life shortcuts to make long fishing sessions less of a chore.
-<br>
+**FishingVolume** is a utility for WoW 1.12.1 designed to automatically handle your volume levels and adds a few quality-of-life shortcuts to make long fishing sessions less of a chore.
 
-Installation
-1. Download this repository and move the FishingVolume folder into your Interface/AddOns/ directory.
-2. The addon includes a cleaner, louder "splash" sound file. To use it, you must move the Sound folder provided in this download into your main WoW game folder (the one containing WoW.exe).
-   
-   Correct Path: WoW/Sound/Spells/FishingBobberSplash.wav
-   <br>
-   Note: This doesn't replace your game files; it tells the game to use this file instead of the default one.
+---
 
+<img width="504" height="684" alt="image" src="https://github.com/user-attachments/assets/714e8310-3c6f-46ea-aac0-ea512749f730" />
 
 <br>
-<img width="517" height="834" alt="image" src="https://github.com/user-attachments/assets/1d90b4de-b7cf-4b1c-b45c-5a4db36e4a2f" />
-<br>
-<img width="447" height="582" alt="image" src="https://github.com/user-attachments/assets/b10606d5-5de4-4a26-b0f0-8147fdc9579b" />
-<br>
+
 <img width="308" height="173" alt="image" src="https://github.com/user-attachments/assets/f2fd7aea-78eb-4854-8133-2ceed9dc02c1" />
-
 <img width="304" height="174" alt="image" src="https://github.com/user-attachments/assets/5e6ce63f-1629-4907-bf2c-3b6a258608df" />
 
-Features
-Volume Control
+<img width="1808" height="755" alt="image" src="https://github.com/user-attachments/assets/e14e3683-997f-41de-be3d-6e1efd8d89b4" />
 
-    Auto-Boost: When you start fishing, the addon kicks your "Sound Volume" up to your preferred level.
+---
 
-    Auto-Restore: As soon as you catch a fish or stop the cast, it puts the volume back exactly where it was.
+## Features
 
-    Mute Delay: If you have high latency, you can set a delay so the volume stays up for a few seconds after the cast ends to make sure you hear the catch.
+* **Auto-Boost**: When you start fishing, the addon kicks your Sound Volume up to your preferred level.
+* **Auto-Restore**: As soon as you catch a fish or stop the cast, it puts the volume back exactly where it was.
+* **Mute Delay**: If you have high latency, set a delay so the volume stays up for a few seconds after the cast ends to make sure you hear the catch.
+* **Click-to-Fish Overlay**: A large, transparent button appears on your screen after a catch. Left-click to cast immediately, right-click to dismiss. Disappears automatically after 10 seconds.
+* **Quick Gear Swap**: Dedicated buttons to equip your fishing pole and swap back to your weapons. Remembers your gear automatically.
+* **Smart Lures**: One-click to scan your bags for the best available lure and apply it to your pole.
+* **Session Stats**: Tracks how many fish and chests/trunks you've caught since you logged in.
+* **Lifetime Totals**: Keeps a permanent record of your character's total catches.
 
-The "Lazy" Fishing Kit
+---
 
-    Click-to-Fish Overlay: A large, transparent button appears on your screen after a catch.
+## Installation
 
-        Left-Click: Casts fishing immediately.
+1. Download this repository and move the `FishingVolume` folder into your `Interface/AddOns/` directory.
+2. The addon includes a cleaner, louder splash sound file. To use it, move the `Sound` folder provided in this download into your main WoW game folder (the one containing `WoW.exe`).
 
-        Right-Click: Dismisses the button.
+   Correct path: `WoW/Sound/Spells/FishingBobberSplash.wav`
 
-        Dissapears automatically after 10 seconds.
+   **Note:** This doesn't replace your game files — it tells the game to use this file instead of the default one.
 
-    Quick Gear Swap: Dedicated buttons to put on your fishing pole and swap back to your weapons. It remembers your gear automatically.
+---
 
-    Smart Lures: One-click to scan your bags for the best available lure and apply it to your pole.
+## Commands
 
-Stats Tracking
+* **`/fv`**: Opens the main settings and stats window.
+* **`/fv mini`**: Toggles the compact, draggable utility bar.
+* **`/fv zones`**: Opens the fishing zones skill browser.
+* **`/fv reset`**: Wipes your lifetime stats (requires a second confirmation within 10 seconds).
 
-    Session Stats: Tracks how many fish and chests/trunks you've caught since you logged in.
+---
 
-    Lifetime Totals: Keeps a permanent record of your character's total catches.
+## Helpful Macros
+* **`/run local n=FishingVolume.GetItemName(GetInventoryItemLink("player",16)) if not (n and string.find(n,"Pole")) then FishingVolume:EquipPole() else CastSpellByName("Fishing") end`**: <br>
+This works like the Fishing button from the Addon, but as an in-game macro.
 
-Commands
+* **`/run FishingVolume:EquipWeapons()`**: <br>
+This works like the Weapons button from the Addon, but as an in-game macro.
 
-    /fv - Opens the main settings and stats window.
-
-    /fv mini - Toggles the compact, draggable utility bar.
-
-    /fv reset - Wipes your lifetime stats (requires a second type within 10 seconds to confirm).
+---
 
 Credits
 
