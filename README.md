@@ -49,11 +49,21 @@
 ---
 
 ## Helpful Macros
-* **`/run local n=FishingVolume.GetItemName(GetInventoryItemLink("player",16)) if not (n and string.find(n,"Pole")) then FishingVolume:EquipPole() else CastSpellByName("Fishing") end`**: <br>
-This works like the Fishing button from the Addon, but as an in-game macro.
 
-* **`/run FishingVolume:EquipWeapons()`**: <br>
-This works like the Weapons button from the Addon, but as an in-game macro.
+**Equip Pole and Fish**
+
+Works like the Fishing button from the addon, but as an in-game macro.
+```lua
+/run local n=FishingVolume.GetItemName(GetInventoryItemLink("player",16)) if not (n and string.find(n,"Pole")) then FishingVolume:EquipPole() else CastSpellByName("Fishing") end
+```
+<br>
+
+**Equip Weapons**
+
+Works like the Weapons button from the addon, but as an in-game macro.
+```lua
+/run FishingVolume:EquipWeapons()
+```
 
 ---
 
